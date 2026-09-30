@@ -3,30 +3,151 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Team tool - coming soon</title>
-  <style>
-    body { font-family: Arial, sans-serif; color: #1f2937;
-           max-width: 640px; margin: 40px auto; padding: 0 16px; }
-    .box { border: 2px dashed #c2410c; border-radius: 12px; padding: 20px; }
-    .ok { color: #047857; font-weight: bold; }
-    .warn { color: #b45309; font-weight: bold; }
-  </style>
+  <title>Record a Trip - MCL Coal Dispatch Monitoring</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="box">
-    <h1>Our team's tool is coming soon</h1>
-    <p>This placeholder page will be replaced in Phase 1 of the workshop.</p>
-    <p id="config-check">Checking database settings...</p>
+  <header id="siteHeader"></header>
+
+  <div class="wrap">
+    <div class="hero">
+      <h1>Record a coal dispatch trip</h1>
+      <p>One form = one truck trip. All data in this tool is made up for training.</p>
+      <a class="btn" href="dashboard.html">Open the Dashboard</a>
+    </div>
+
+    <div id="msg"></div>
+
+    <form id="tripForm" class="form-card" autocomplete="off">
+      <div class="fgrid">
+        <div><label for="location">Route / Siding *</label>
+          <select id="location" required></select></div>
+        <div><label for="destination">Destination *</label>
+          <select id="destination" required></select></div>
+        <div><label for="mine">Mine *</label><select id="mine" required></select></div>
+        <div><label for="customer">Customer *</label><select id="customer" required></select></div>
+        <div><label for="transporter">Transporter *</label><select id="transporter" required></select></div>
+        <div><label for="vehicle_no">Vehicle number *</label>
+          <input id="vehicle_no" required maxlength="20" placeholder="e.g. OD14-T-1001"></div>
+        <div><label for="vehicle_type">Vehicle type *</label><select id="vehicle_type" required></select></div>
+        <div><label for="payload_mt">Payload (MT) *</label>
+          <input id="payload_mt" type="number" step="0.01" min="0" max="60" required inputmode="decimal"></div>
+        <div><label for="distance_km">Distance one way (km)</label>
+          <input id="distance_km" type="number" step="0.1" min="0" inputmode="decimal"></div>
+        <div><label for="departure">Departure time *</label>
+          <input id="departure" type="datetime-local" required></div>
+        <div class="full"><label for="ret">Return time</label>
+          <input id="ret" type="datetime-local">
+          <div class="hint">Leave empty if the truck has not come back yet. Cycle time = return time - departure time.</div></div>
+        <div><label for="loading_min">Loading time (minutes)</label><input id="loading_min" type="number" min="0" inputmode="numeric"></div>
+        <div><label for="queue_min">Queue / waiting time (minutes)</label><input id="queue_min" type="number" min="0" inputmode="numeric"></div>
+        <div><label for="travel_min">Travel time to destination (minutes)</label><input id="travel_min" type="number" min="0" inputmode="numeric"></div>
+        <div><label for="unloading_min">Unloading time (minutes)</label><input id="unloading_min" type="number" min="0" inputmode="numeric"></div>
+      </div>
+      <button class="btn full" id="saveBtn" type="submit">Save trip</button>
+    </form>
+
+    <div class="form-card">
+      <h3 class="sub-title" style="margin-top:0">Last 10 trips saved</h3>
+      <div class="tw"><table>
+        <thead><tr><th>Date</th><th>Vehicle</th><th>Route / Siding</th><th>Transporter</th>
+          <th class="num">MT</th><th>Urgency</th><th>Status</th></tr></thead>
+        <tbody id="recent"><tr><td colspan="7">Loading...</td></tr></tbody>
+      </table></div>
+    </div>
   </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
+  <script src="common.js"></script>
   <script>
-    var el = document.getElementById("config-check");
-    var url = window.SUPABASE_URL || "";
-    var key = window.SUPABASE_PUBLISHABLE_KEY || "";
-    var ready = url.indexOf("PASTE") === -1 && key.indexOf("sb_publishable_") === 0;
-    el.textContent = ready ? "Database settings: filled in \u2713"
-                           : "Database settings: not filled in yet (this is normal before Phase 1)";
-    el.className = ready ? "ok" : "warn";
+    (function () {
+      var M = window.MCL;
+      M.header('index');
+      var $ = function (id) { return document.getElementById(id); };
+
+      function fill(sel, items) {
+        $(sel).innerHTML = items.map(function (x) { return '<option>' + M.esc(x) + '</option>'; }).join('');
+      }
+      fill('location', M.LOC_KEYS);
+      fill('mine', M.MINES);
+      fill('customer', M.CUSTOMERS);
+      fill('transporter', M.TRANSPORTERS);
+      fill('vehicle_type', Object.keys(M.VTYPES));
+
+      function onLocation() {
+        var L = M.LOC[$('location').value];
+        fill('destination', L.dests);
+        $('distance_km').value = L.dist;
+      }
+      $('location').addEventListener('change', onLocation);
+      onLocation();
+
+      function show(kind, html) { $('msg').innerHTML = '<div class="banner ' + kind + '">' + html + '</div>'; }
+
+      var db = null;
+      if (!M.isConfigured()) {
+        show('warn', 'The database settings in <b>config.js</b> are not filled in yet, so trips cannot be saved. ' +
+          'You can still open the <a href="dashboard.html">Dashboard</a>: it shows made-up demo data.');
+        $('recent').innerHTML = '<tr><td colspan="7">Not connected to the database yet.</td></tr>';
+      } else {
+        try { db = M.getDb(); loadRecent(); }
+        catch (e) { show('bad', 'Could not start the database connection. Error: ' + M.esc(M.errText(e))); }
+      }
+
+      async function loadRecent() {
+        var res = await db.from('dispatch_trips').select('trip_date,vehicle_no,location,transporter,payload_mt,urgency,status')
+                          .order('created_at', { ascending: false }).limit(10);
+        if (res.error) {
+          $('recent').innerHTML = '<tr><td colspan="7">Could not read trips. Error: ' + M.esc(M.errText(res.error)) + '</td></tr>';
+          return;
+        }
+        $('recent').innerHTML = res.data.length ? res.data.map(function (r) {
+          return '<tr><td>' + M.esc(r.trip_date) + '</td><td>' + M.esc(r.vehicle_no) + '</td><td>' + M.esc(r.location) +
+                 '</td><td>' + M.esc(r.transporter) + '</td><td class="num">' + M.n1(+r.payload_mt) + '</td><td>' +
+                 M.esc(r.urgency) + '</td><td>' + M.esc(r.status) + '</td></tr>';
+        }).join('') : '<tr><td colspan="7">No trips saved yet.</td></tr>';
+      }
+
+      function num(id) { var v = $(id).value; return v === '' ? null : Number(v); }
+      function iso(id) { var v = $(id).value; return v ? new Date(v + ':00+05:30').toISOString() : null; } // times are India time
+
+      $('tripForm').addEventListener('submit', async function (ev) {
+        ev.preventDefault();
+        if (!db) { show('warn', 'Not connected to the database yet, so nothing was saved.'); return; }
+        var dep = $('departure').value, ret = $('ret').value;
+        if (ret && new Date(ret) <= new Date(dep)) { show('bad', 'Return time must be after the departure time.'); return; }
+        var loc = $('location').value, L = M.LOC[loc];
+        var hour = Number(dep.slice(11, 13));
+        var cyc = ret ? (new Date(ret) - new Date(dep)) / 3.6e6 : null;
+        var row = {
+          trip_date: dep.slice(0, 10),
+          shift: hour >= 6 && hour < 14 ? 'A' : hour >= 14 && hour < 22 ? 'B' : 'C',
+          mine: $('mine').value, mode: L.mode, location: loc, destination: $('destination').value,
+          customer: $('customer').value, transporter: $('transporter').value,
+          vehicle_no: $('vehicle_no').value.trim().toUpperCase(), vehicle_type: $('vehicle_type').value,
+          payload_mt: num('payload_mt'), distance_km: num('distance_km'),
+          departure_time: iso('departure'), return_time: iso('ret'),
+          loading_min: num('loading_min'), queue_min: num('queue_min'),
+          travel_min: num('travel_min'), unloading_min: num('unloading_min'),
+          urgency: cyc == null ? 'Low' : M.urgencyOf(cyc / L.std),
+          status: ret ? 'Resolved' : 'In progress'
+        };
+        $('saveBtn').disabled = true;
+        var res = await db.from('dispatch_trips').insert(row);
+        $('saveBtn').disabled = false;
+        if (res.error) {
+          show('bad', 'Sorry, the trip could not be saved. Please send this error text to the Data Keeper: <b>' +
+               M.esc(M.errText(res.error)) + '</b>');
+          return;
+        }
+        show('ok', 'Trip saved. Check it on the <a href="dashboard.html">Dashboard</a>.');
+        $('vehicle_no').value = ''; $('ret').value = '';
+        ['loading_min', 'queue_min', 'travel_min', 'unloading_min'].forEach(function (id) { $(id).value = ''; });
+        loadRecent();
+        window.scrollTo(0, 0);
+      });
+    })();
   </script>
 </body>
 </html>
