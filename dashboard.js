@@ -25,7 +25,7 @@
   ];
   const F = { from: '', to: '' };
   FILTERS.forEach(function (f) { F[f[0]] = ''; });
-  let roadGrain = 'day', vehShowAll = false, vehSort = { k: 'ratio', dir: -1 };
+  let vehShowAll = false, vehSort = { k: 'ratio', dir: -1 };
   const vehOpen = new Set(), trOpen = new Set();
   const charts = {};
 
@@ -204,12 +204,6 @@
     });
     $('filterToggle').addEventListener('click', function () { $('filters').classList.toggle('open'); });
     $('closeFilters').addEventListener('click', function () { $('filters').classList.remove('open'); });
-    $('roadGrain').addEventListener('click', function (e) {
-      const g = e.target.getAttribute('data-g'); if (!g) return;
-      roadGrain = g;
-      Array.prototype.forEach.call($('roadGrain').children, function (b) { b.classList.toggle('on', b.getAttribute('data-g') === g); });
-      renderRoad();
-    });
     $('vStatus').addEventListener('change', function () { renderVehicles(); });
     $('vehMore').addEventListener('click', function () { vehShowAll = true; renderVehicles(); });
   }
@@ -474,63 +468,6 @@
     });
   }
   function locAgg(l) { return agg(rows.filter(function (r) { return r.location === l; })); }
-  function renderRoad() {
-    ['Sundargarh', 'Raigarh'].forEach(function (l) { $('zone-' + l).innerHTML = zoneHtml(l); });
-    const s = locAgg('Sundargarh'), r = locAgg('Raigarh');
-    shareChart('ch-road-share', ['Sundargarh', 'Raigarh'], [
-      { label: 'Dispatch MT', vals: [s.mt, r.mt] }, { label: 'Trips', vals: [s.trips, r.trips] }, { label: 'Vehicles', vals: [s.veh, r.veh] }]);
-    cycleChart('ch-road-cycle', ['Sundargarh', 'Raigarh']);
-
-    // trend (daily or monthly)
-    const road = rows.filter(function (x) { return x.mode === 'Road'; });
-    let keys, label;
-    if (roadGrain === 'day') { keys = dateList(); label = dayLabel; }
-    else { keys = Array.from(new Set(rows.map(function (x) { return x.month; }))).sort(); label = monthLabel; }
-    const keyOf = roadGrain === 'day' ? function (x) { return x.trip_date; } : function (x) { return x.month; };
-    const mapBy = {};
-    ['Sundargarh', 'Raigarh'].forEach(function (l) {
-      mapBy[l] = {}; road.filter(function (x) { return x.location === l; }).forEach(function (x) { mapBy[l][keyOf(x)] = (mapBy[l][keyOf(x)] || 0) + x.payload; });
-    });
-    chart('ch-road-trend', {
-      type: 'line',
-      data: { labels: keys.map(label), datasets: ['Sundargarh', 'Raigarh'].map(function (l) {
-        return { label: l, data: keys.map(function (k) { return mapBy[l][k] || 0; }), borderColor: M.LOC[l].color,
-                 backgroundColor: M.LOC[l].color, tension: 0.25, pointRadius: roadGrain === 'day' ? 0 : 4, borderWidth: 2 };
-      }) },
-      options: { interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, ticks: { callback: tickMT }, title: { display: true, text: 'MT' } },
-        x: { ticks: { maxTicksLimit: 10 } } } }
-    });
-
-    // vehicle deployment
-    const dep = ['Sundargarh', 'Raigarh'].map(function (l) {
-      const rs = road.filter(function (x) { return x.location === l; });
-      const perDay = groupBy(rs, function (x) { return x.trip_date; });
-      let tot = 0; perDay.forEach(function (list) { tot += new Set(list.map(function (x) { return x.vehicle_no; })).size; });
-      return { veh: agg(rs).veh, day: perDay.size ? tot / perDay.size : 0 };
-    });
-    chart('ch-road-veh', {
-      type: 'bar', plugins: [valueLabels],
-      data: { labels: ['Sundargarh', 'Raigarh'], datasets: [
-        { label: 'Vehicles deployed (period)', data: dep.map(function (d) { return d.veh; }), backgroundColor: COL.blue },
-        { label: 'Average vehicles active per day', data: dep.map(function (d) { return d.day; }), backgroundColor: '#9dc0e8' }] },
-      options: { scales: { y: { beginAtZero: true } }, plugins: { valueLabels: { fmt: function (ds, j) { return M.n1(ds.data[j]).replace('.0', ''); } } } }
-    });
-
-    // destination table
-    const g = groupBy(road, function (x) { return x.location + '|' + x.destination; });
-    const totRoad = agg(road).mt || 1;
-    const list = [];
-    g.forEach(function (rs, k) { list.push({ side: k.split('|')[0], dest: k.split('|')[1], a: agg(rs), ratio: ratioAvg(rs) }); });
-    list.sort(function (a, b) { return b.a.mt - a.a.mt; });
-    $('destTable').innerHTML = '<thead><tr><th>Destination</th><th>Side</th><th class="num">Dispatch MT</th><th class="num">% of road</th><th class="num">Trips</th>' +
-      '<th class="num">Vehicles</th><th class="num">Avg load/trip (MT)</th><th class="num">Avg cycle (h)</th><th>Status</th></tr></thead><tbody>' +
-      (list.length ? list.map(function (x) {
-        return '<tr><td>' + M.esc(x.dest) + '</td><td>' + M.esc(x.side) + '</td><td class="num">' + M.n0(x.a.mt) + '</td><td class="num">' + M.pct(x.a.mt / totRoad * 100) +
-               '</td><td class="num">' + M.n0(x.a.trips) + '</td><td class="num">' + M.n0(x.a.veh) + '</td><td class="num">' + M.n1(x.a.pay) +
-               '</td><td class="num">' + M.n1(x.a.cyc) + '</td><td>' + M.pill(M.statusOf(x.ratio)) + '</td></tr>';
-      }).join('') : '<tr><td colspan="9">No road trips for these filters.</td></tr>') + '</tbody>';
-  }
-
   // ---------- Daily trend ----------
   function renderDaily() {
     const dates = dateList();
@@ -797,7 +734,7 @@
     const days = windowDays();
     V = vehStats(rows, days);
     const E = exceptionData();
-    renderKPIs(); renderExStrip(E); renderInsights(E); renderMode(); renderRoad(); renderDaily();
+    renderKPIs(); renderExStrip(E); renderInsights(E); renderMode(); renderDaily();
     renderSiding(); renderTransporters(); renderVehicles(); renderExceptions(E);
     renderUtilization(); renderActions(E); renderSummary();
   }

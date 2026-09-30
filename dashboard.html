@@ -12,7 +12,6 @@
   <nav class="levels" aria-label="Dashboard levels">
     <div class="levels-in">
       <a href="#l1">Level 1 - Management Overview</a>
-      <a href="#road">Road Sale</a>
       <a href="#l2">Level 2 - Siding &amp; Transporter</a>
       <a href="#l3">Level 3 - Vehicle Performance</a>
       <a href="#exceptions">Exceptions</a>
@@ -65,27 +64,6 @@
           <div class="card"><h3>Month-wise dispatch trend <small>(MT)</small></h3>
             <div class="chart"><canvas id="ch-monthly"></canvas></div></div>
         </div>
-      </section>
-
-      <section class="blk" id="road">
-        <h2 class="sec-title">Road sale - destination-wise dispatch</h2>
-        <div class="grid2">
-          <div class="zone" id="zone-Sundargarh" style="border-left-color:#1f5fa8"></div>
-          <div class="zone" id="zone-Raigarh" style="border-left-color:#6aa6dc"></div>
-        </div>
-        <div class="grid2" style="margin-top:14px">
-          <div class="card"><h3>Sundargarh vs Raigarh <small>(share of road total)</small></h3>
-            <div class="chart short"><canvas id="ch-road-share"></canvas></div></div>
-          <div class="card"><h3>Average cycle time vs standard <small>(hours)</small></h3>
-            <div class="chart short"><canvas id="ch-road-cycle"></canvas></div></div>
-          <div class="card"><h3>Road dispatch trend <small>(MT)</small></h3>
-            <div class="toggle" id="roadGrain"><button data-g="day" class="on">Daily</button><button data-g="month">Monthly</button></div>
-            <div class="chart"><canvas id="ch-road-trend"></canvas></div></div>
-          <div class="card"><h3>Vehicle deployment comparison</h3>
-            <div class="chart"><canvas id="ch-road-veh"></canvas></div></div>
-        </div>
-        <h3 class="sub-title">Destination-wise dispatch table</h3>
-        <div class="tw"><table id="destTable"></table></div>
       </section>
 
       <section class="blk" id="daily">
