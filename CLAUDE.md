@@ -71,13 +71,33 @@
   commit and push.
 
 ## Our tool (filled in during Phase 1)
-- Team:
-- Tool name:
-- Problem:
-- Who records / who decides:
-- Table name and columns:
+- Team: MCL participants, IIM Sambalpur MDP
+- Tool name: Coal Dispatch & Transportation Monitoring
+- Problem: management cannot quickly see how much coal went out by Road and
+  Siding, which transporter is best/worst, and which vehicles have high cycle time.
+- Who records / who decides: dispatch staff record one row per truck trip
+  (index.html); senior management reads dashboard.html.
+- Table name and columns: dispatch_trips - id, created_at, trip_date, shift,
+  mine, mode (Road/Siding), location (Sundargarh/Raigarh/Laikera/Kanika),
+  destination, customer, transporter, vehicle_no, vehicle_type, payload_mt,
+  distance_km, departure_time, return_time, loading_min, queue_min, travel_min,
+  unloading_min, urgency (Low/Medium/High = cycle time Normal/Attention/Exception),
+  status (Open/In progress/Resolved).
+- Made-up planning values (targets, standard cycle times) live in common.js.
 - Pages: index.html = entry page; dashboard.html = dashboard
 
 ## Progress Log (newest entry at the bottom)
 - Phase 0 (starter): placeholder index.html, config.js without settings and
   this CLAUDE.md. Next: Phase 1 - the table and the entry page.
+- Phase 1 (Claude session): built database/01-setup.sql (table dispatch_trips),
+  index.html (trip entry form), dashboard.html + dashboard.js (3-level dashboard:
+  KPIs, insights, road/siding split, Sundargarh/Raigarh, Laikera/Kanika,
+  transporter drill-down, vehicle cycle time, exceptions, utilization, actions,
+  summary), shared style.css, common.js, demo-data.js.
+  Works: tested in a browser with demo data (no database). Dashboard shows
+  clearly-labelled DEMO data when config.js is empty or the table is empty.
+  NOT yet tested: the live database. Known problems: none known; Chart.js and
+  Supabase load from the CDN, so the internet is needed.
+  Next step: Data Keeper runs database/01-setup.sql, fills config.js, opens
+  dashboard.html, presses "Save demo data to the database" once (or records real
+  trips on index.html), then we check the live site.

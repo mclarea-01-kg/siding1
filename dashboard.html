@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coal Dispatch &amp; Transportation Monitoring - MCL</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="siteHeader"></header>
+
+  <nav class="levels" aria-label="Dashboard levels">
+    <div class="levels-in">
+      <a href="#l1">Level 1 - Management Overview</a>
+      <a href="#road">Road Sale</a>
+      <a href="#l2">Level 2 - Siding &amp; Transporter</a>
+      <a href="#l3">Level 3 - Vehicle Performance</a>
+      <a href="#exceptions">Exceptions</a>
+      <a href="#actions">Actions</a>
+      <a href="#summary">Summary</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <!-- ================= FILTER PANEL ================= -->
+    <aside class="filters" id="filters" aria-label="Filters">
+      <h3>Filters</h3>
+      <label for="f-from">Date from</label><input type="date" id="f-from">
+      <label for="f-to">Date to</label><input type="date" id="f-to">
+      <label for="f-mine">Mine</label><select id="f-mine"></select>
+      <label for="f-mode">Dispatch mode</label><select id="f-mode"></select>
+      <label for="f-destination">Destination</label><select id="f-destination"></select>
+      <label for="f-transporter">Transporter</label><select id="f-transporter"></select>
+      <label for="f-vehicle">Vehicle number</label><select id="f-vehicle"></select>
+      <label for="f-vtype">Vehicle type</label><select id="f-vtype"></select>
+      <label for="f-shift">Shift</label><select id="f-shift"></select>
+      <label for="f-customer">Customer</label><select id="f-customer"></select>
+      <button class="btn full" id="resetBtn" type="button">Reset filters</button>
+      <button class="btn ghost full" id="closeFilters" type="button" style="display:none">Show results</button>
+    </aside>
+    <button class="btn filter-toggle" id="filterToggle" type="button">Filters</button>
+
+    <main>
+      <div id="banner"></div>
+
+      <!-- ================= LEVEL 1 ================= -->
+      <div class="level-band" id="l1"><small>LEVEL 1</small><h2>Management Overview</h2></div>
+
+      <section class="blk">
+        <div class="kpis" id="kpis"></div>
+        <div class="ex-strip" id="exStrip"></div>
+      </section>
+
+      <section class="blk">
+        <h2 class="sec-title">Key insights</h2>
+        <div class="insights" id="insights"></div>
+      </section>
+
+      <section class="blk" id="mode">
+        <h2 class="sec-title">Dispatch mode split - Road vs Siding</h2>
+        <div class="grid2">
+          <div class="card"><h3>Share of dispatch <small>(MT)</small></h3>
+            <div class="chart"><canvas id="ch-donut"></canvas></div>
+            <div class="legend-note" id="modeNote"></div></div>
+          <div class="card"><h3>Month-wise dispatch trend <small>(MT)</small></h3>
+            <div class="chart"><canvas id="ch-monthly"></canvas></div></div>
+        </div>
+      </section>
+
+      <section class="blk" id="road">
+        <h2 class="sec-title">Road sale - destination-wise dispatch</h2>
+        <div class="grid2">
+          <div class="zone" id="zone-Sundargarh" style="border-left-color:#1f5fa8"></div>
+          <div class="zone" id="zone-Raigarh" style="border-left-color:#6aa6dc"></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div class="card"><h3>Sundargarh vs Raigarh <small>(share of road total)</small></h3>
+            <div class="chart short"><canvas id="ch-road-share"></canvas></div></div>
+          <div class="card"><h3>Average cycle time vs standard <small>(hours)</small></h3>
+            <div class="chart short"><canvas id="ch-road-cycle"></canvas></div></div>
+          <div class="card"><h3>Road dispatch trend <small>(MT)</small></h3>
+            <div class="toggle" id="roadGrain"><button data-g="day" class="on">Daily</button><button data-g="month">Monthly</button></div>
+            <div class="chart"><canvas id="ch-road-trend"></canvas></div></div>
+          <div class="card"><h3>Vehicle deployment comparison</h3>
+            <div class="chart"><canvas id="ch-road-veh"></canvas></div></div>
+        </div>
+        <h3 class="sub-title">Destination-wise dispatch table</h3>
+        <div class="tw"><table id="destTable"></table></div>
+      </section>
+
+      <section class="blk" id="daily">
+        <h2 class="sec-title">Daily dispatch trend</h2>
+        <div class="card"><h3>Date vs coal dispatch <small>(MT) - columns by route / siding, lines show daily target and 7-day average</small></h3>
+          <div class="chart tall"><canvas id="ch-daily"></canvas></div></div>
+      </section>
+
+      <!-- ================= LEVEL 2 ================= -->
+      <div class="level-band" id="l2"><small>LEVEL 2</small><h2>Transporter &amp; Siding Performance</h2></div>
+
+      <section class="blk" id="siding">
+        <h2 class="sec-title">Siding-wise coal dispatch</h2>
+        <div class="grid2">
+          <div class="zone" id="zone-Laikera" style="border-left-color:#0f8b8d"></div>
+          <div class="zone" id="zone-Kanika" style="border-left-color:#7a5cc7"></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div class="card"><h3>Laikera vs Kanika <small>(share of siding total)</small></h3>
+            <div class="chart short"><canvas id="ch-siding-share"></canvas></div></div>
+          <div class="card"><h3>Average cycle time vs standard <small>(hours)</small></h3>
+            <div class="chart short"><canvas id="ch-siding-cycle"></canvas></div></div>
+        </div>
+      </section>
+
+      <section class="blk" id="transporters">
+        <h2 class="sec-title">Siding transporter performance</h2>
+        <div class="legend">
+          <span>Drill down: <b>Siding &rarr; Transporter &rarr; Vehicle number</b> (tap the + sign).</span>
+          <span><span class="flag good">High dispatch</span><span class="flag bad">Low dispatch</span>
+            <span class="flag bad">High cycle time</span><span class="flag warn">Low vehicle utilization</span>
+            <span class="flag warn">Low trips/vehicle</span></span>
+        </div>
+        <div class="tw"><table id="trTable"></table></div>
+        <div class="legend-note">Achievement % = dispatch against the siding's target, shared equally between the transporters working at that siding.</div>
+      </section>
+
+      <!-- ================= LEVEL 3 ================= -->
+      <div class="level-band" id="l3"><small>LEVEL 3</small><h2>Vehicle Performance</h2></div>
+
+      <section class="blk" id="vehicles">
+        <h2 class="sec-title">Vehicle-wise cycle time monitoring</h2>
+        <p class="legend-note" style="margin-top:-4px">Cycle time = Return time - Departure time. Tap a vehicle row to see its time components.</p>
+        <div id="abnormalBox"></div>
+        <div class="grid2">
+          <div class="card"><h3>Vehicles with the highest average cycle time <small>(hours, top 15)</small></h3>
+            <div class="chart tall"><canvas id="ch-veh-cycle"></canvas></div></div>
+          <div class="card"><h3>Where the time goes <small>(average hours per trip, by route / siding)</small></h3>
+            <div class="chart tall"><canvas id="ch-components"></canvas></div>
+            <div class="legend-note">Return = cycle time minus loading, waiting, travel and unloading.</div></div>
+        </div>
+        <h3 class="sub-title">Vehicle-wise table</h3>
+        <div class="tbl-tools">
+          <label for="vStatus">Show:</label>
+          <select id="vStatus"><option value="">All vehicles</option><option>Exception</option><option>Attention</option><option>Normal</option></select>
+        </div>
+        <div class="tw"><table id="vehTable"></table></div>
+        <div class="more"><button class="btn ghost" id="vehMore" type="button" style="display:none">Show all vehicles</button></div>
+      </section>
+
+      <section class="blk" id="exceptions">
+        <h2 class="sec-title">Cycle time exception monitoring</h2>
+        <div class="legend">
+          <span>&#128994; <b>Normal</b> - within 10% of standard cycle time</span>
+          <span>&#128993; <b>Attention</b> - 10-20% above standard</span>
+          <span>&#128308; <b>Exception</b> - more than 20% above standard</span>
+        </div>
+        <div class="ex-grid" id="exGrid"></div>
+        <div class="grid2" style="margin-top:14px">
+          <div><h3 class="sub-title">Route-wise delays</h3><div class="tw"><table id="routeDelay"></table></div></div>
+          <div><h3 class="sub-title">Transporter-wise delays</h3><div class="tw"><table id="trDelay"></table></div></div>
+        </div>
+      </section>
+
+      <section class="blk" id="utilization">
+        <h2 class="sec-title">Vehicle utilization</h2>
+        <div class="kpis" id="utilKpis"></div>
+        <div class="grid2" style="margin-top:14px">
+          <div class="card"><h3>Top 10 vehicles <small>(highest utilization)</small></h3><div id="top10"></div></div>
+          <div class="card"><h3>Bottom 10 vehicles <small>(lowest utilization)</small></h3><div id="bottom10"></div></div>
+        </div>
+        <div class="legend-note">Utilization % = hours the vehicle was on trips &divide; (days in period &times; 20 working hours). Idle time = the rest.</div>
+      </section>
+
+      <!-- ================= ACTIONS + SUMMARY ================= -->
+      <section class="blk" id="actions">
+        <h2 class="sec-title">Recommended actions</h2>
+        <div class="actions" id="actionsBox"></div>
+      </section>
+
+      <section class="blk" id="summary">
+        <h2 class="sec-title">Management summary</h2>
+        <div class="tw"><table id="sumTable"></table></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">All figures are made-up training data. Targets and standard cycle times are planning values set in common.js.</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="common.js"></script>
+  <script src="demo-data.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
